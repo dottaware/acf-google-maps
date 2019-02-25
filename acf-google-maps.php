@@ -18,32 +18,32 @@ if ( ! defined('ABSPATH') ) {
 class ACF_Google_Maps_Widget extends WP_Widget {
 
     private $defaults;
-  
+
     private $location = ['address' => '', 'lat' => '', 'lng' => '',];
-  
+
     private $googlemaps_js_args;
-  
+
     private $post_id;
 
 
     public function __construct() {
-          
+
         $widget_title = __('ACF Google Maps');
-      
+
         $widget_ops = array('classname' => 'acf-google-maps', 
                             'description' => __('Show a Google Maps on the frontend.'));
 
         $control_ops = array(
-              'id_base'  => 'acf-google-maps',
-              'width'    => 400, 
-              'height'   => 350,
+                'id_base'  => 'acf-google-maps',
+                'width'    => 400, 
+                'height'   => 350,
         );
         
         parent::__construct('acf-google-maps', $widget_title, $widget_ops, $control_ops);
       
         $this->defaults = array(
-            'title'           => 'Google Maps',
-            'google_maps_api' => '',
+                'title'           => 'Google Maps',
+                'google_maps_api' => '',
         );
 
         $this->location = ['geo_location' => 'Adresse manquante !'];	  	
@@ -56,7 +56,7 @@ class ACF_Google_Maps_Widget extends WP_Widget {
       
         // Only works with single posts.
         if ( ! is_single() ) {
-            return;		
+            return;
         }
           
         // Merge with defaults.
@@ -112,7 +112,7 @@ class ACF_Google_Maps_Widget extends WP_Widget {
                 <p class="content"><?php echo $this->location['geo_description']; ?></p>
             </div>
         </div>
-        <?php  
+        <?php
 
     }
   
@@ -175,9 +175,9 @@ class ACF_Google_Maps_Widget extends WP_Widget {
      * Create the Google Maps js url.
      *
      */
-    private function get_googlemaps_script_url() {	  
+    private function get_googlemaps_script_url() {
 
-        $this->googlemaps_js_args = array(			
+        $this->googlemaps_js_args = array(
             'key'       => $this->defaults['google_maps_api'],
             'language'  => 'fr',
             'ver'		=> 'weekly',
