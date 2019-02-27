@@ -235,8 +235,7 @@ class ACF_Google_Maps_Widget extends WP_Widget {
                 'page_title'    => 'ACF Google Maps',
                 'menu_title'    => 'ACF Google Maps',
                 'menu_slug'     => 'acf-google-maps',
-                // 'position'   => 10.3,
-                // 'parent_slug'     'options-general.php',
+                'parent_slug'   => 'options-general.php',
         ) );
     }
 
