@@ -193,7 +193,7 @@ class ACF_Google_Maps_Widget extends WP_Widget {
     private function enqueue_frontend_scripts() {
 
         wp_enqueue_script( 'acf-google-maps-api', $this->get_googlemaps_script_url(), array(), null, true );
-        wp_enqueue_script( 'acf-google-maps-init', get_stylesheet_directory_uri() . '/js/google-maps.js', array('acf-google-maps-api', 'jquery'), null, true );
+        wp_enqueue_script( 'acf-google-maps-init', plugin_dir_url( __FILE__ ) . '/js/acf-google-maps.js', array('acf-google-maps-api', 'jquery'), null, true );
 
     }
 
