@@ -43,10 +43,12 @@ class ACF_Google_Maps_Widget extends WP_Widget {
       
         $this->defaults = array(
                 'title'           => 'Google Maps',
-                'google_maps_api' => '',
+                'google_maps_api' => get_option('options_google_maps_api'),
         );
 
-        $this->location = ['geo_location' => 'Adresse manquante !'];	  	
+        $this->location = ['geo_location' => 'Adresse manquante !'];
+
+        $this->create_option_page();
 
     }
     
@@ -62,13 +64,14 @@ class ACF_Google_Maps_Widget extends WP_Widget {
         // Merge with defaults.
         $instance = wp_parse_args( (array) $instance, $this->defaults );
       
+        // $this->defaults['google_maps_api'] = get_option('options_google_maps_api');
         // Bail out if empty Google Maps API key.
-        if ( empty( $instance['google_maps_api'] ) ) {
+        if ( empty( $this->defaults['google_maps_api'] ) ) {
             return;
         }
       
         // save Google Maps API in the class variable.
-        $this->defaults['google_maps_api'] = $instance['google_maps_api'];
+        // $this->defaults['google_maps_api'] = $instance['google_maps_api'];
       
         // store the post_ID in a class variable.
         $this->post_id =  get_the_ID();
@@ -90,7 +93,7 @@ class ACF_Google_Maps_Widget extends WP_Widget {
 
         echo $args['before_title'] . apply_filters( 'widget_title', $title, $instance, $this->id_base ) . $args['after_title'];
 
-        // show the map on the frontend.
+        // Show the map on the frontend.
         $this->output_google_map();
 
         echo $args['after_widget'];
@@ -104,7 +107,7 @@ class ACF_Google_Maps_Widget extends WP_Widget {
      */
     private function output_google_map() {
 
-        // print out the google map.
+        // Print out the google map.
         ?>
         <div class="acf-map">
             <div class="marker" data-lat="<?php echo $this->location['lat']; ?>" data-lng="<?php echo $this->location['lng']; ?>">
@@ -206,24 +209,39 @@ class ACF_Google_Maps_Widget extends WP_Widget {
         // Get location data.
         $location = get_post_meta( $this->post_id, 'geo_coordinates', true );
 
-        // no term, no glory...
+        // No term, no glory...
         if ( ! $location || empty( $location ) ) {
             return;
         }
 
-        // unserialize the ACF field.
+        // Unserialize the ACF field.
         $location = maybe_unserialize( $location );
 
-        // get location and description.
+        // Get location and description.
         $location['geo_location']  = get_post_meta( $this->post_id, 'geo_location', true );
         $location['geo_description']  = get_post_meta( $this->post_id, 'geo_description', true );
 
-        // if address is empty, use geo_location.
+        // If the address is empty, use geo_location.
         $location['address'] = $location['address'] ? $location['address'] : $location['geo_location'];
 
         return $location;
 
     }
+
+    private function create_option_page() {
+
+        if( function_exists('acf_add_options_sub_page') ) {
+            acf_add_options_sub_page( array(
+                'page_title'    => 'ACF Google Maps',
+                'menu_title'    => 'ACF Google Maps',
+                'menu_slug'     => 'acf-google-maps',
+                // 'position'   => 10.3,
+                // 'parent_slug'     'options-general.php',
+        ) );
+    }
+
+    }
+
 
 } // end Widget class
 
