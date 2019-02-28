@@ -19,7 +19,7 @@ class ACF_Google_Maps_Widget extends WP_Widget {
 
     private $defaults;
 
-    private $location = ['address' => '', 'lat' => '', 'lng' => '',];
+    private $geodata = ['address' => '', 'lat' => '', 'lng' => '',];
 
     private $googlemaps_js_args;
 
@@ -111,7 +111,7 @@ class ACF_Google_Maps_Widget extends WP_Widget {
         ?>
         <div class="acf-map">
             <div class="marker" data-lat="<?php echo $this->location['lat']; ?>" data-lng="<?php echo $this->location['lng']; ?>">
-                <h5 class="address"><?php echo $this->location['geo_location']; ?></h5>
+                <h5 class="address"><?php echo $this->location['address']; ?></h5>
                 <p class="content"><?php echo $this->location['geo_description']; ?></p>
             </div>
         </div>
@@ -206,28 +206,54 @@ class ACF_Google_Maps_Widget extends WP_Widget {
      */
     private function get_post_location() {
 
-        // Get location data.
-        $location = get_post_meta( $this->post_id, 'geo_coordinates', true );
+        // Get geo metadata from old plugin WP Geo.
+        if ( metadata_exists( 'post', $this->post_id, '_wp_geo_latitude' ) ) {
 
-        // No term, no glory...
-        if ( ! $location || empty( $location ) ) {
-            return;
+            $geodata = array(
+                'address'  => get_post_meta( $this->post_id, '_wp_geo_title', true ),
+                'lat'   => get_post_meta( $this->post_id, '_wp_geo_latitude', true ),
+                'lng'  => get_post_meta( $this->post_id, '_wp_geo_longitude', true ),
+            );
+
+            if ( $geodata['address'] && $geodata['lat'] && $geodata['lng'] ) {
+                return $geodata;
+            }
         }
 
-        // Unserialize the ACF field.
-        $location = maybe_unserialize( $location );
+        // Get geo metadata from ACF.
+        if ( metadata_exists( 'post', $this->post_id, 'geo_coordinates' ) ) {
 
-        // Get location and description.
-        $location['geo_location']  = get_post_meta( $this->post_id, 'geo_location', true );
-        $location['geo_description']  = get_post_meta( $this->post_id, 'geo_description', true );
+            $geodata = get_post_meta( $this->post_id, 'geo_coordinates', true );
 
-        // If the address is empty, use geo_location.
-        $location['address'] = $location['address'] ? $location['address'] : $location['geo_location'];
+            // No term, no glory...
+            if ( ! $geodata || empty( $geodata ) ) {
+                return;
+            }
 
-        return $location;
+            // Unserialize the ACF field.
+            $geodata = maybe_unserialize( $geodata );
+
+            // Get location and description.
+            $geodata['location'] = get_post_meta( $this->post_id, 'geo_location', true );
+            $geodata['description'] = get_post_meta( $this->post_id, 'geo_description', true );
+
+            // If the address is empty, use geo_location.
+            $geodata['address'] = $geodata['location'] ? $geodata['location'] : $geodata['address'];
+
+            if ( $geodata['address'] && $geodata['lat'] && $geodata['lng'] ) {
+                return $geodata;
+            }
+        }
+
+        // return empty value.
+        return;
 
     }
 
+    /**
+     *
+     *
+     */
     private function create_option_page() {
 
         if( function_exists('acf_add_options_sub_page') ) {
@@ -236,8 +262,8 @@ class ACF_Google_Maps_Widget extends WP_Widget {
                 'menu_title'    => 'ACF Google Maps',
                 'menu_slug'     => 'acf-google-maps',
                 'parent_slug'   => 'options-general.php',
-        ) );
-    }
+            ) );
+        }
 
     }
 
