@@ -88,6 +88,15 @@ function add_marker( $marker, map ) {
             infowindow.open( map, marker );
 
         });
+
+        // resize map when info window is closed
+        google.maps.event.addListener(infowindow, 'closeclick', function() {
+
+            // center map
+            center_map( map );
+
+        });
+
     }
 
 }

@@ -7,7 +7,7 @@
  * Author: Stefano Dotta
  * Text Domain: acf-google-maps
  * Domain Path: /languages
- * Version: 1.2
+ * Version: 1.3
 **/
 
 if ( ! defined('ABSPATH') ) {
@@ -22,9 +22,6 @@ class ACF_Google_Maps_Widget extends WP_Widget {
     private $geo_metadata;
 
     private $googlemaps_js_args;
-
-    private $post_id;
-
 
     public function __construct() {
 
@@ -49,8 +46,6 @@ class ACF_Google_Maps_Widget extends WP_Widget {
                 'key' => get_option('options_google_maps_api'),
                 'ver' => 'weekly',
         );
-
-        $this->geo_metadata = ['location' => 'Adresse manquante !'];
 
         $this->create_option_page();
 
@@ -108,7 +103,7 @@ class ACF_Google_Maps_Widget extends WP_Widget {
         ?>
         <div class="acf-map">
             <div class="marker" data-lat="<?php echo $this->geo_metadata['lat']; ?>" data-lng="<?php echo $this->geo_metadata['lng']; ?>" data-title="<?php echo $this->geo_metadata['location']; ?>">
-                <p class="content"><?php echo $this->geo_metadata['description']; ?></p>
+                <div class="content"><?php echo $this->geo_metadata['description']; ?></div>
             </div>
         </div>
         <?php
@@ -186,6 +181,38 @@ class ACF_Google_Maps_Widget extends WP_Widget {
         global $post;
         $post_id = $post->ID;
 
+        // Get geo metadata from ACF.
+        if ( metadata_exists( 'post', $post_id, 'geo_coordinates' ) ) {
+
+            $geo_coordinates = get_post_meta( $post_id, 'geo_coordinates', true );
+        
+            // Unserialize the ACF field.
+            $geo_metadata = maybe_unserialize( $geo_coordinates );
+        
+            // Get location and description.
+            $geo_metadata['location'] = get_post_meta( $post_id, 'geo_location', true );
+            $geo_metadata['description'] = get_post_meta( $post_id, 'geo_description', true );
+        
+            // If location is empty, try using the address value from ACF.
+            $geo_metadata['location'] = $geo_metadata['location'] ? $geo_metadata['location'] : $geo_metadata['address'];
+        
+            // As last resort, use the post title.
+            if ( empty( $geo_metadata['location'] ) ) {
+                $geo_metadata['location'] = $post->post_title;
+            }
+
+            // If description is empty, use the location.
+            $geo_metadata['description'] = $geo_metadata['description'] ? $geo_metadata['description'] : $geo_metadata['location'];
+
+            // Add line breaks to the description field.
+            $geo_metadata['description'] = wpautop( $geo_metadata['description'] );
+
+            // Only return metadata if both latitude and longitude exist.
+            if ( $geo_metadata['lat'] && $geo_metadata['lng'] ) {
+                return $geo_metadata;
+            }
+        }
+
         // Get geo metadata from old plugin WP Geo.
         if ( metadata_exists( 'post', $post_id, '_wp_geo_latitude' ) ) {
 
@@ -201,39 +228,8 @@ class ACF_Google_Maps_Widget extends WP_Widget {
             // If description is empty, use the location.
             $geo_metadata['description'] = $geo_metadata['description'] ? $geo_metadata['description'] : $geo_metadata['location'];
 
-            // Only return metadata if both latitude and longitude exist.
-            if ( $geo_metadata['lat'] && $geo_metadata['lng'] ) {
-                return $geo_metadata;
-            }
-        }
-
-        // Get geo metadata from ACF.
-        if ( metadata_exists( 'post', $post_id, 'geo_coordinates' ) ) {
-
-            $geo_coordinates = get_post_meta( $post_id, 'geo_coordinates', true );
-
-            // No term, no glory...
-            if ( ! $geo_coordinates || empty( $geo_coordinates ) ) {
-                return;
-            }
-
-            // Unserialize the ACF field.
-            $geo_metadata = maybe_unserialize( $geo_coordinates );
-
-            // Get location and description.
-            $geo_metadata['location'] = get_post_meta( $post_id, 'geo_location', true );
-            $geo_metadata['description'] = get_post_meta( $post_id, 'geo_description', true );
-
-            // If location is empty, try using the address value from ACF.
-            $geo_metadata['location'] = $geo_metadata['location'] ? $geo_metadata['location'] : $geo_metadata['address'];
-
-            // As last resort, use the post title.
-            if ( empty( $geo_metadata['location'] ) ) {
-                $geo_metadata['location'] = $post->post_title;
-            }
-
-            // If description is empty, use the location.
-            $geo_metadata['description'] = $geo_metadata['description'] ? $geo_metadata['description'] : $geo_metadata['location'];
+            // Add line breaks to the description field.
+            $geo_metadata['description'] = wpautop( $geo_metadata['description'] );
 
             // Only return metadata if both latitude and longitude exist.
             if ( $geo_metadata['lat'] && $geo_metadata['lng'] ) {
