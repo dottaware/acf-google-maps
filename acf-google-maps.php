@@ -7,7 +7,7 @@
  * Author: Stefano Dotta
  * Text Domain: acf-google-maps
  * Domain Path: /languages
- * Version: 1.0
+ * Version: 1.2
 **/
 
 if ( ! defined('ABSPATH') ) {
@@ -19,7 +19,7 @@ class ACF_Google_Maps_Widget extends WP_Widget {
 
     private $defaults;
 
-    private $geodata = ['address' => '', 'lat' => '', 'lng' => '',];
+    private $geo_metadata;
 
     private $googlemaps_js_args;
 
@@ -42,18 +42,22 @@ class ACF_Google_Maps_Widget extends WP_Widget {
         parent::__construct('acf-google-maps', $widget_title, $widget_ops, $control_ops);
       
         $this->defaults = array(
-                'title'           => 'Google Maps',
-                'google_maps_api' => get_option('options_google_maps_api'),
+                'title' => 'Google Maps',
         );
 
-        $this->location = ['geo_location' => 'Adresse manquante !'];
+        $this->googlemaps_js_args = array(
+                'key' => get_option('options_google_maps_api'),
+                'ver' => 'weekly',
+        );
+
+        $this->geo_metadata = ['location' => 'Adresse manquante !'];
 
         $this->create_option_page();
 
     }
     
     
-    // Outputs the content for the widget instance.	 
+    // Outputs the content for the widget instance.
     public function widget( $args, $instance ) {
       
         // Only works with single posts.
@@ -61,31 +65,24 @@ class ACF_Google_Maps_Widget extends WP_Widget {
             return;
         }
           
-        // Merge with defaults.
-        $instance = wp_parse_args( (array) $instance, $this->defaults );
-      
-        // $this->defaults['google_maps_api'] = get_option('options_google_maps_api');
         // Bail out if empty Google Maps API key.
-        if ( empty( $this->defaults['google_maps_api'] ) ) {
+        if ( empty( $this->googlemaps_js_args['key'] ) ) {
             return;
         }
-      
-        // save Google Maps API in the class variable.
-        // $this->defaults['google_maps_api'] = $instance['google_maps_api'];
-      
-        // store the post_ID in a class variable.
-        $this->post_id =  get_the_ID();
 
-        // Get post location coordinates.
-        $this->location = $this->get_post_location();
-      
-        // Bail out if empty (no coordinates).
-        if ( empty( $this->location ) ) {
+        // Get post geo metadata.
+        $this->geo_metadata = $this->get_post_geo_metadata();
+
+        // Bail out if no geo metadata found.
+        if ( empty( $this->geo_metadata ) ) {
             return;
         }
-          
+
         // Load the required scripts.
         $this->enqueue_frontend_scripts();
+
+        // Merge with defaults.
+        $instance = wp_parse_args( (array) $instance, $this->defaults );
 
         echo $args['before_widget'];
 
@@ -110,9 +107,8 @@ class ACF_Google_Maps_Widget extends WP_Widget {
         // Print out the google map.
         ?>
         <div class="acf-map">
-            <div class="marker" data-lat="<?php echo $this->location['lat']; ?>" data-lng="<?php echo $this->location['lng']; ?>">
-                <h5 class="address"><?php echo $this->location['address']; ?></h5>
-                <p class="content"><?php echo $this->location['geo_description']; ?></p>
+            <div class="marker" data-lat="<?php echo $this->geo_metadata['lat']; ?>" data-lng="<?php echo $this->geo_metadata['lng']; ?>" data-title="<?php echo $this->geo_metadata['location']; ?>">
+                <p class="content"><?php echo $this->geo_metadata['description']; ?></p>
             </div>
         </div>
         <?php
@@ -128,12 +124,7 @@ class ACF_Google_Maps_Widget extends WP_Widget {
         $instance = $old_instance;
         
         $instance['title'] = sanitize_text_field( $new_instance['title'] );
-        $instance['google_maps_api'] = $new_instance['google_maps_api'];
-        
         $instance['height'] = (int) $new_instance['height'];
-        if ( $instance['count'] < 100 || 100 < $instance['count'] ) {
-            $instance['count'] = 100;
-        }
 
         return $instance;
     }
@@ -147,11 +138,9 @@ class ACF_Google_Maps_Widget extends WP_Widget {
         // Merge with defaults.
         $instance = wp_parse_args( (array) $instance, $this->defaults );
 
-        $google_maps_api = $instance['google_maps_api'];
-
         $title = sanitize_text_field( $instance['title'] );
 
-        $height = isset( $instance['height'] ) ? (int) $instance['height'] : 100;
+        $height = isset( $instance['height'] ) ? (int) $instance['height'] : 300;
 
         ?>
 
@@ -161,12 +150,7 @@ class ACF_Google_Maps_Widget extends WP_Widget {
         </p>
 
         <p>
-            <label for="<?php echo $this->get_field_id('google_maps_api'); ?>"><?php _e('Google Maps API:'); ?></label>
-            <input class="widefat" id="<?php echo $this->get_field_id('google_maps_api'); ?>" name="<?php echo $this->get_field_name('google_maps_api'); ?>" type="text" value="<?php echo esc_attr($google_maps_api); ?>" />
-        </p>
-
-        <p>
-            <label for="<?php echo $this->get_field_id( 'height' ); ?>"><?php esc_html_e( 'Maximum number of posts to show (no more than 10):', 'jetpack' ); ?></label>
+            <label for="<?php echo $this->get_field_id( 'height' ); ?>"><?php _e( 'Widget height:'); ?></label>
             <input id="<?php echo $this->get_field_id( 'height' ); ?>" name="<?php echo $this->get_field_name( 'height' ); ?>" type="number" value="<?php echo (int) $height; ?>" min="100" max="900" />
         </p>
 
@@ -179,12 +163,6 @@ class ACF_Google_Maps_Widget extends WP_Widget {
      *
      */
     private function get_googlemaps_script_url() {
-
-        $this->googlemaps_js_args = array(
-            'key'       => $this->defaults['google_maps_api'],
-            'language'  => 'fr',
-            'ver'		=> 'weekly',
-        );
 
         $script_url = esc_url_raw( add_query_arg( $this->googlemaps_js_args, 'https://maps.googleapis.com/maps/api/js' ) );
       
@@ -204,48 +182,66 @@ class ACF_Google_Maps_Widget extends WP_Widget {
      *
      *
      */
-    private function get_post_location() {
+    private function get_post_geo_metadata() {
+        global $post;
+        $post_id = $post->ID;
 
         // Get geo metadata from old plugin WP Geo.
-        if ( metadata_exists( 'post', $this->post_id, '_wp_geo_latitude' ) ) {
+        if ( metadata_exists( 'post', $post_id, '_wp_geo_latitude' ) ) {
 
-            $geodata = array(
-                'address'  => get_post_meta( $this->post_id, '_wp_geo_title', true ),
-                'lat'   => get_post_meta( $this->post_id, '_wp_geo_latitude', true ),
-                'lng'  => get_post_meta( $this->post_id, '_wp_geo_longitude', true ),
+            $geo_metadata = array(
+                'location'  => get_post_meta( $post_id, '_wp_geo_title', true ),
+                'lat'   => get_post_meta( $post_id, '_wp_geo_latitude', true ),
+                'lng'  => get_post_meta( $post_id, '_wp_geo_longitude', true ),
             );
 
-            if ( $geodata['address'] && $geodata['lat'] && $geodata['lng'] ) {
-                return $geodata;
+            // If location is empty, use the post title.
+            $geo_metadata['location'] = $geo_metadata['location'] ? $geo_metadata['location'] : $post->post_title;
+
+            // If description is empty, use the location.
+            $geo_metadata['description'] = $geo_metadata['description'] ? $geo_metadata['description'] : $geo_metadata['location'];
+
+            // Only return metadata if both latitude and longitude exist.
+            if ( $geo_metadata['lat'] && $geo_metadata['lng'] ) {
+                return $geo_metadata;
             }
         }
 
         // Get geo metadata from ACF.
-        if ( metadata_exists( 'post', $this->post_id, 'geo_coordinates' ) ) {
+        if ( metadata_exists( 'post', $post_id, 'geo_coordinates' ) ) {
 
-            $geodata = get_post_meta( $this->post_id, 'geo_coordinates', true );
+            $geo_coordinates = get_post_meta( $post_id, 'geo_coordinates', true );
 
             // No term, no glory...
-            if ( ! $geodata || empty( $geodata ) ) {
+            if ( ! $geo_coordinates || empty( $geo_coordinates ) ) {
                 return;
             }
 
             // Unserialize the ACF field.
-            $geodata = maybe_unserialize( $geodata );
+            $geo_metadata = maybe_unserialize( $geo_coordinates );
 
             // Get location and description.
-            $geodata['location'] = get_post_meta( $this->post_id, 'geo_location', true );
-            $geodata['description'] = get_post_meta( $this->post_id, 'geo_description', true );
+            $geo_metadata['location'] = get_post_meta( $post_id, 'geo_location', true );
+            $geo_metadata['description'] = get_post_meta( $post_id, 'geo_description', true );
 
-            // If the address is empty, use geo_location.
-            $geodata['address'] = $geodata['location'] ? $geodata['location'] : $geodata['address'];
+            // If location is empty, try using the address value from ACF.
+            $geo_metadata['location'] = $geo_metadata['location'] ? $geo_metadata['location'] : $geo_metadata['address'];
 
-            if ( $geodata['address'] && $geodata['lat'] && $geodata['lng'] ) {
-                return $geodata;
+            // As last resort, use the post title.
+            if ( empty( $geo_metadata['location'] ) ) {
+                $geo_metadata['location'] = $post->post_title;
+            }
+
+            // If description is empty, use the location.
+            $geo_metadata['description'] = $geo_metadata['description'] ? $geo_metadata['description'] : $geo_metadata['location'];
+
+            // Only return metadata if both latitude and longitude exist.
+            if ( $geo_metadata['lat'] && $geo_metadata['lng'] ) {
+                return $geo_metadata;
             }
         }
 
-        // return empty value.
+        // if nothing has been found, return an empty value.
         return;
 
     }
@@ -262,6 +258,7 @@ class ACF_Google_Maps_Widget extends WP_Widget {
                 'menu_title'    => 'ACF Google Maps',
                 'menu_slug'     => 'acf-google-maps',
                 'parent_slug'   => 'options-general.php',
+                'capability'    => 'manage_options',
             ) );
         }
 
